@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>ATF — Pre-CPC Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#0d1117;--steel:#1c2936;--iron:#2d3f52;--slate:#3d5166;
+  --white:#f8fafc;--mist:#cbd5e1;--fog:#64748b;
+  --amber:#f59e0b;--green:#10b981;--red:#ef4444;--blue:#3b82f6;
+  --violet:#8b5cf6;--cyan:#06b6d4;--orange:#fb923c;
+  --r:8px;--r2:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--ink);color:var(--white);font-family:'Inter',sans-serif;
+  min-height:100vh;padding-bottom:80px}
+.app-bar{background:var(--steel);border-bottom:2px solid rgba(245,158,11,.3);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100}
+.app-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--amber)}
+.app-sub{font-size:10px;color:var(--fog);margin-top:2px}
+.study-badge{font-size:11px;padding:4px 10px;background:rgba(16,185,129,.15);
+  border:1px solid rgba(16,185,129,.3);border-radius:20px;color:var(--green);font-weight:600}
+.tab-bar{display:flex;overflow-x:auto;background:var(--steel);border-bottom:1px solid var(--iron);
+  scrollbar-width:none;gap:2px;padding:0 8px}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:10px 14px;font-family:'Inter',sans-serif;font-size:11px;
+  font-weight:600;color:var(--fog);background:none;border:none;cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.pane{display:none;padding:14px}
+.pane.active{display:block}
+.card{background:var(--steel);border:1px solid var(--iron);border-radius:var(--r2);
+  margin-bottom:12px;overflow:hidden}
+.card-hdr{padding:12px 14px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--iron)}
+.ch-icon{font-size:16px}
+.ch-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700}
+.card-body{padding:14px}
+.field{margin-bottom:10px}
+.field label{font-size:9px;font-weight:700;color:var(--fog);text-transform:uppercase;
+  letter-spacing:.6px;display:block;margin-bottom:4px}
+.field input,.field select,.field textarea{
+  width:100%;background:rgba(255,255,255,.06);border:1px solid var(--slate);
+  border-radius:var(--r);padding:9px 11px;font-family:'Inter',sans-serif;
+  font-size:13px;color:var(--white);-webkit-appearance:none}
+.field textarea{min-height:60px;resize:vertical}
+.req{color:var(--red)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.submit-btn{width:100%;padding:14px;background:linear-gradient(135deg,#b45309,#f59e0b);
+  border:none;border-radius:var(--r);color:#fff;font-family:'Barlow Condensed',sans-serif;
+  font-size:18px;font-weight:800;cursor:pointer;margin-top:8px;letter-spacing:.5px}
+.submit-btn.green{background:linear-gradient(135deg,#059669,#10b981)}
+.submit-btn.blue{background:linear-gradient(135deg,#1d4ed8,#3b82f6)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  padding:10px 18px;border-radius:25px;font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .3s;z-index:800;white-space:nowrap}
+.toast.show{opacity:1}
+.toast.ok{background:#10b981;color:#fff}
+.toast.err{background:#ef4444;color:#fff}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi-card{background:var(--iron);border-radius:var(--r);padding:12px;text-align:center}
+.kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800}
+.kpi-lbl{font-size:9px;color:var(--fog);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.entry-card{background:var(--iron);border:1px solid var(--slate);border-radius:var(--r2);
+  padding:11px 13px;margin-bottom:8px;border-left:3px solid var(--amber)}
+.tool-row{background:rgba(255,255,255,.04);border:1px solid var(--slate);
+  border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
+.badge{display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:700;
+  background:var(--red);color:#fff;margin-left:4px}
+.section-hdr{font-size:9px;font-weight:700;color:var(--fog);text-transform:uppercase;
+  letter-spacing:.8px;margin:14px 0 7px;padding-bottom:4px;
+  border-bottom:1px solid var(--iron)}
+.alert-banner{padding:10px 13px;border-radius:var(--r);margin-bottom:10px;font-size:11px;line-height:1.6}
+.alert-amber{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:var(--amber)}
+.alert-green{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+.alert-red{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+.progress-bar{height:6px;background:var(--iron);border-radius:3px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;border-radius:3px;transition:width .5s}
+.empty{text-align:center;padding:32px 16px;color:var(--fog)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<div class="app-bar">
+  <div>
+    <div class="app-title">ATF | PRE-CPC ANALYSIS</div>
+    <div class="app-sub" id="study-name-display">No study loaded — upload master sheet in Settings</div>
+  </div>
+  <div class="study-badge" id="day-badge">Day —</div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('dashboard')" id="tab-dashboard">📊 Dashboard</button>
+  <button class="tab" onclick="switchTab('daily')" id="tab-daily">📅 Daily Entry</button>
+  <button class="tab" onclick="switchTab('tools')" id="tab-tools">🔧 Tool Changes</button>
+  <button class="tab" onclick="switchTab('analysis')" id="tab-analysis">📈 Analysis</button>
+  <button class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════ DASHBOARD ═══ -->
+<div id="pane-dashboard" class="pane active">
+  <div id="no-study-banner" class="alert-banner alert-amber" style="margin-bottom:12px">
+    ⚠️ No study loaded. Go to ⚙️ Settings → Upload Master Sheet to begin.
+  </div>
+  <div id="study-header" style="display:none;margin-bottom:12px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--amber)" id="dash-customer"></div>
+    <div style="font-size:11px;color:var(--fog);margin-top:2px" id="dash-component"></div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-val" id="kpi-days" style="color:var(--cyan)">—</div>
+      <div class="kpi-lbl">Study Days Done</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-val" id="kpi-cpc" style="color:var(--amber)">—</div>
+      <div class="kpi-lbl">Customer CPC (₹/pc)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-val" id="kpi-prod" style="color:var(--green)">—</div>
+      <div class="kpi-lbl">Total Production</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-val" id="kpi-rej" style="color:var(--red)">—</div>
+      <div class="kpi-lbl">Avg Rejection %</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr" style="background:rgba(16,185,129,.08)">
+      <span class="ch-icon">🔧</span>
+      <span class="ch-title" style="color:var(--green)">Tool Cost Summary</span>
+    </div>
+    <div class="card-body" id="tool-cost-summary">
+      <div class="empty"><div class="empty-icon">📊</div><p>No data yet — start daily entries</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr">
+      <span class="ch-icon">📋</span>
+      <span class="ch-title">Recent Daily Entries</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--fog)" id="entry-count">0 days logged</span>
+    </div>
+    <div class="card-body" id="recent-entries">
+      <div class="empty"><div class="empty-icon">📅</div><p>No entries yet</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ DAILY ENTRY ═══ -->
+<div id="pane-daily" class="pane">
+  <div class="card" style="border:2px solid rgba(245,158,11,.25)">
+    <div class="card-hdr" style="background:rgba(245,158,11,.08)">
+      <span class="ch-icon">📅</span>
+      <span class="ch-title" style="color:var(--amber)">LOG DAILY PRODUCTION</span>
+    </div>
+    <div class="card-body">
+      <div class="frow" style="margin-bottom:10px">
+        <div class="field">
+          <label>Study Person <span class="req">*</span></label>
+          <input id="d-person" placeholder="Your name"/>
+        </div>
+        <div class="field">
+          <label>Date <span class="req">*</span></label>
+          <input type="date" id="d-date"/>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:10px">
+        <div class="field">
+          <label>Machine <span class="req">*</span></label>
+          <select id="d-machine"><option value="">— Select —</option></select>
+        </div>
+        <div class="field">
+          <label>Shift <span class="req">*</span></label>
+          <select id="d-shift">
+            <option value="">— Select —</option>
+            <option value="A">A Shift</option>
+            <option value="B">B Shift</option>
+            <option value="C">C Shift</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:10px">
+        <div class="field">
+          <label>Production (pcs) <span class="req">*</span></label>
+          <input type="number" id="d-prod" placeholder="0" min="0"/>
+        </div>
+        <div class="field">
+          <label>Rejection (pcs)</label>
+          <input type="number" id="d-rej" placeholder="0" min="0"/>
+        </div>
+      </div>
+      <div class="field" id="d-rej-reason-section" style="display:none;margin-bottom:10px">
+        <label>Rejection Reason <span class="req">*</span></label>
+        <select id="d-rej-reason"><option value="">— Select reason —</option></select>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Machine Downtime (minutes) — 0 if none</label>
+        <input type="number" id="d-downtime" placeholder="0" min="0"/>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Observations / Notes</label>
+        <textarea id="d-notes" placeholder="Any quality issues, machine problems, unusual events..."></textarea>
+      </div>
+      <div style="font-size:10px;color:var(--fog);margin-bottom:8px;padding:7px 10px;
+        background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:var(--r)">
+        💡 After submitting production data, use the 🔧 Tool Changes tab to log any tools changed this shift.
+      </div>
+      <button class="submit-btn" onclick="submitDailyEntry()">📅 LOG PRODUCTION DATA</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TOOL CHANGES ═══ -->
+<div id="pane-tools" class="pane">
+  <div class="card" style="border:2px solid rgba(139,92,246,.25)">
+    <div class="card-hdr" style="background:rgba(139,92,246,.08)">
+      <span class="ch-icon">🔧</span>
+      <span class="ch-title" style="color:var(--violet)">LOG TOOL CHANGE</span>
+    </div>
+    <div class="card-body">
+      <div class="frow" style="margin-bottom:10px">
+        <div class="field">
+          <label>Date <span class="req">*</span></label>
+          <input type="date" id="t-date"/>
+        </div>
+        <div class="field">
+          <label>Shift <span class="req">*</span></label>
+          <select id="t-shift">
+            <option value="">—</option>
+            <option value="A">A Shift</option>
+            <option value="B">B Shift</option>
+            <option value="C">C Shift</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Machine <span class="req">*</span></label>
+        <select id="t-machine" onchange="populateToolDropdown()"><option value="">— Select machine —</option></select>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Tool Changed <span class="req">*</span></label>
+        <select id="t-tool" onchange="onToolSelected()"><option value="">— Select tool —</option></select>
+      </div>
+
+      <!-- Tool info card — auto-fills from master -->
+      <div id="t-tool-info" style="display:none;padding:10px;background:var(--iron);
+        border-radius:var(--r);margin-bottom:10px;font-size:11px;line-height:1.8">
+      </div>
+
+      <div class="frow" style="margin-bottom:10px">
+        <div class="field">
+          <label>Quantity Changed <span class="req">*</span></label>
+          <input type="number" id="t-qty" placeholder="0" min="1"/>
+        </div>
+        <div class="field">
+          <label>Life Achieved (pcs)</label>
+          <input type="number" id="t-life" placeholder="0" oninput="updateLifeIndicator()"/>
+        </div>
+      </div>
+
+      <!-- Life indicator -->
+      <div id="t-life-indicator" style="display:none;margin-bottom:10px;padding:7px 10px;
+        border-radius:var(--r);font-size:11px;font-weight:600;text-align:center"></div>
+
+      <!-- Insert corners (shows for insert type tools) -->
+      <div id="t-corner-section" style="display:none;margin-bottom:10px">
+        <div class="section-hdr">INSERT CORNERS USED</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <button type="button" id="corner-btn-1" onclick="selectCorners(1)"
+            style="padding:10px;background:var(--iron);border:1.5px solid var(--slate);border-radius:var(--r);color:var(--mist);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">
+            1 Corner
+          </button>
+          <button type="button" id="corner-btn-2" onclick="selectCorners(2)"
+            style="padding:10px;background:var(--iron);border:1.5px solid var(--slate);border-radius:var(--r);color:var(--mist);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">
+            2 Corners
+          </button>
+          <button type="button" id="corner-btn-3" onclick="selectCorners(3)"
+            style="padding:10px;background:var(--iron);border:1.5px solid var(--slate);border-radius:var(--r);color:var(--mist);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">
+            3 Corners
+          </button>
+          <button type="button" id="corner-btn-4" onclick="selectCorners(4)"
+            style="padding:10px;background:rgba(16,185,129,.12);border:1.5px solid rgba(16,185,129,.3);border-radius:var(--r);color:var(--green);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600">
+            ✅ All 4 Corners (Best)
+          </button>
+        </div>
+        <input type="hidden" id="t-corners" value=""/>
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label>Change Reason <span class="req">*</span></label>
+        <select id="t-reason">
+          <option value="">— Select reason —</option>
+          <option value="worn">Worn Out (normal wear)</option>
+          <option value="chipped">Chipped — minor</option>
+          <option value="broken">Broken — tool breakage</option>
+          <option value="scheduled">Scheduled change</option>
+          <option value="size">Size out of tolerance</option>
+          <option value="finish">Poor surface finish</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <!-- Resharpening (shows for round tools) -->
+      <div id="t-resharpen-section" style="display:none;margin-bottom:10px">
+        <div class="section-hdr">RESHARPENING</div>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <button type="button" id="rsh-yes" onclick="setResharpen(true)"
+            style="flex:1;padding:10px;background:var(--iron);border:1.5px solid var(--slate);border-radius:var(--r);color:var(--mist);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">
+            ♻️ Yes — Sending for resharpening
+          </button>
+          <button type="button" id="rsh-no" onclick="setResharpen(false)"
+            style="flex:1;padding:10px;background:var(--iron);border:1.5px solid var(--slate);border-radius:var(--r);color:var(--mist);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">
+            🗑️ No — Scrapping
+          </button>
+        </div>
+        <div id="rsh-count-section" style="display:none">
+          <div class="field">
+            <label>How many times has this tool been resharpened so far?</label>
+            <input type="number" id="t-rsh-count" placeholder="0" min="0"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label>Source of Information</label>
+        <select id="t-source">
+          <option value="direct">Direct observation by ATF person</option>
+          <option value="operator_card">Operator tool change card</option>
+          <option value="whatsapp">WhatsApp from supervisor</option>
+          <option value="verbal">Verbal confirmation from operator</option>
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:10px">
+        <label>Remarks</label>
+        <input id="t-remarks" placeholder="Any observations about this tool change..."/>
+      </div>
+
+      <button class="submit-btn" style="background:linear-gradient(135deg,#5b21b6,#8b5cf6)" onclick="submitToolChange()">
+        🔧 LOG TOOL CHANGE
+      </button>
+    </div>
+  </div>
+
+  <!-- Today's tool changes -->
+  <div class="section-hdr">TODAY'S TOOL CHANGES</div>
+  <div id="today-tool-changes">
+    <div class="empty"><div class="empty-icon">🔧</div><p>No tool changes logged today</p></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ANALYSIS ═══ -->
+<div id="pane-analysis" class="pane">
+  <div class="card">
+    <div class="card-hdr" style="background:rgba(59,130,246,.08)">
+      <span class="ch-icon">📈</span>
+      <span class="ch-title" style="color:var(--blue)">30-DAY STUDY ANALYSIS</span>
+    </div>
+    <div class="card-body" id="analysis-body">
+      <div class="empty"><div class="empty-icon">📈</div><p>Analysis builds as data accumulates</p></div>
+    </div>
+  </div>
+
+  <!-- CPC Calculation -->
+  <div class="card">
+    <div class="card-hdr" style="background:rgba(245,158,11,.08)">
+      <span class="ch-icon">💰</span>
+      <span class="ch-title" style="color:var(--amber)">CURRENT CPC CALCULATION</span>
+    </div>
+    <div class="card-body" id="cpc-calc-body">
+      <div class="empty"><div class="empty-icon">💰</div><p>Minimum 7 days of data needed</p></div>
+    </div>
+  </div>
+
+  <!-- Corner utilization -->
+  <div class="card">
+    <div class="card-hdr" style="background:rgba(16,185,129,.08)">
+      <span class="ch-icon">🔖</span>
+      <span class="ch-title" style="color:var(--green)">INSERT CORNER UTILIZATION</span>
+    </div>
+    <div class="card-body" id="corner-util-body">
+      <div class="empty"><div class="empty-icon">🔖</div><p>Log tool changes with corner data to see utilization</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SETTINGS ═══ -->
+<div id="pane-settings" class="pane">
+
+  <!-- STUDY MANAGER -->
+  <div class="card" style="border:2px solid rgba(245,158,11,.3)">
+    <div class="card-hdr" style="background:rgba(245,158,11,.1);justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="ch-icon">📋</span>
+        <span class="ch-title" style="color:var(--amber)">CUSTOMER STUDIES</span>
+      </div>
+      <button onclick="showAddStudyModal()"
+        style="padding:6px 14px;background:linear-gradient(135deg,#b45309,#f59e0b);
+        border:none;border-radius:20px;color:#fff;font-family:'Barlow Condensed',sans-serif;
+        font-size:14px;font-weight:700;cursor:pointer">
+        + New Study
+      </button>
+    </div>
+    <div class="card-body" id="study-list-container">
+      <div class="empty"><div class="empty-icon">📋</div><p>No studies yet — tap + New Study</p></div>
+    </div>
+  </div>
+
+  <!-- Add Study Modal -->
+  <div id="add-study-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,.85);z-index:700;overflow-y:auto;padding:14px">
+    <div style="background:var(--steel);border:2px solid rgba(245,158,11,.3);border-radius:var(--r2);
+      max-width:420px;margin:0 auto">
+      <div style="background:rgba(245,158,11,.1);padding:14px 16px;border-bottom:1px solid rgba(245,158,11,.2)">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--amber)">
+          📋 Add New Customer Study
+        </div>
+        <div style="font-size:11px;color:var(--fog);margin-top:3px">
+          Each study has its own machines, tools and daily data
+        </div>
+      </div>
+      <div style="padding:14px">
+        <div class="field" style="margin-bottom:8px">
+          <label>Customer / Company Name <span class="req">*</span></label>
+          <input id="ns-customer" placeholder="e.g. SOM Autotech"/>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Plant / Site</label>
+          <input id="ns-plant" placeholder="e.g. Pune Plant 2"/>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Component Name <span class="req">*</span></label>
+          <input id="ns-component" placeholder="e.g. Crankcase"/>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Material</label>
+          <input id="ns-material" placeholder="e.g. GG25 Cast Iron, HRC 45"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="field">
+            <label>Study Start Date <span class="req">*</span></label>
+            <input type="date" id="ns-start"/>
+          </div>
+          <div class="field">
+            <label>Duration (days)</label>
+            <input type="number" id="ns-duration" value="30" min="1"/>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Monthly Production Target (pcs)</label>
+          <input type="number" id="ns-target" placeholder="e.g. 5000"/>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Study Person Name <span class="req">*</span></label>
+          <input id="ns-person" placeholder="e.g. Adesh"/>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Current Monthly Tooling Spend (₹ approx)</label>
+          <input type="number" id="ns-current-spend" placeholder="e.g. 85000"/>
+        </div>
+
+        <div class="section-hdr">UPLOAD MASTER EXCEL (optional — add machines/tools later)</div>
+        <div class="field" style="margin-bottom:10px">
+          <label>ATF_PreCPC_Study_Master.xlsx</label>
+          <input type="file" id="ns-file" accept=".xlsx,.xls"
+            style="background:var(--iron);padding:10px;cursor:pointer"/>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button onclick="document.getElementById('add-study-modal').style.display='none'"
+            style="flex:1;padding:12px;background:var(--iron);border:1px solid var(--slate);
+            border-radius:var(--r);color:var(--fog);font-family:'Inter',sans-serif;font-size:12px;cursor:pointer">
+            Cancel
+          </button>
+          <button onclick="createNewStudy()"
+            style="flex:2;padding:12px;background:linear-gradient(135deg,#b45309,#f59e0b);
+            border:none;border-radius:var(--r);color:#fff;font-family:'Barlow Condensed',sans-serif;
+            font-size:17px;font-weight:700;cursor:pointer">
+            ✅ Create Study
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Sheets connection -->
+  <div class="card">
+    <div class="card-hdr">
+      <span class="ch-icon">📊</span>
+      <span class="ch-title">Google Sheets Sync</span>
+    </div>
+    <div class="card-body">
+      <div class="field" style="margin-bottom:8px">
+        <label>Google Sheets Web App URL</label>
+        <input id="sheets-url" placeholder="https://script.google.com/macros/s/.../exec"
+          oninput="saveSettings()"/>
+      </div>
+      <button onclick="testConnection()" style="width:100%;padding:9px;background:var(--iron);
+        border:1px solid var(--slate);border-radius:var(--r);color:var(--mist);
+        font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer">
+        🔌 Test Connection
+      </button>
+      <div id="conn-status" style="font-size:11px;color:var(--fog);margin-top:6px;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- Study person name -->
+  <div class="card">
+    <div class="card-hdr">
+      <span class="ch-icon">👤</span>
+      <span class="ch-title">Study Person Details</span>
+    </div>
+    <div class="card-body">
+      <div class="field" style="margin-bottom:8px">
+        <label>Your Name</label>
+        <input id="person-name" placeholder="e.g. Adesh" oninput="saveSettings()"/>
+      </div>
+      <div class="field">
+        <label>Company (ATF / Parent Company)</label>
+        <select id="company-name" onchange="saveSettings()">
+          <option value="ATF">Accurate Tools & Fixtures (ATF)</option>
+          <option value="Parent">Parent Company</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export data -->
+  <div class="card">
+    <div class="card-hdr">
+      <span class="ch-icon">💾</span>
+      <span class="ch-title">Export Study Data</span>
+    </div>
+    <div class="card-body">
+      <button onclick="exportStudyData()" style="width:100%;padding:11px;
+        background:linear-gradient(135deg,#059669,#10b981);border:none;
+        border-radius:var(--r);color:#fff;font-family:'Barlow Condensed',sans-serif;
+        font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px">
+        📥 Export All Data as CSV
+      </button>
+      <button onclick="clearAllData()" style="width:100%;padding:9px;background:var(--iron);
+        border:1px solid rgba(239,68,68,.3);border-radius:var(--r);color:var(--red);
+        font-family:'Inter',sans-serif;font-size:12px;cursor:pointer">
+        🗑️ Clear All Study Data
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+// ── MULTI-STUDY STATE ───────────────────────────────────────────────────────
+// All studies stored in one place, filtered by activeStudyId
+// Option B: One Google Sheet, customer name as column
+
+function getStudies(){
+  return JSON.parse(localStorage.getItem('precpc_studies')||'[]');
+}
+function saveStudies(s){
+  localStorage.setItem('precpc_studies',JSON.stringify(s));
+}
+function getActiveStudyId(){
+  return localStorage.getItem('precpc_active_study')||'';
+}
+function setActiveStudyId(id){
+  localStorage.setItem('precpc_active_study',id);
+}
+function getActiveStudy(){
+  const id=getActiveStudyId();
+  return getStudies().find(s=>s.id===id)||null;
+}
+
+// All daily logs across all studies — filter by studyId
+function getAllDailyLogs(){
+  return JSON.parse(localStorage.getItem('precpc_all_daily')||'[]');
+}
+function saveAllDailyLogs(logs){
+  localStorage.setItem('precpc_all_daily',JSON.stringify(logs));
+}
+function getStudyDailyLogs(studyId){
+  return getAllDailyLogs().filter(e=>e.studyId===studyId);
+}
+
+// All tool changes across all studies
+function getAllToolChanges(){
+  return JSON.parse(localStorage.getItem('precpc_all_tc')||'[]');
+}
+function saveAllToolChanges(tcs){
+  localStorage.setItem('precpc_all_tc',JSON.stringify(tcs));
+}
+function getStudyToolChanges(studyId){
+  return getAllToolChanges().filter(e=>e.studyId===studyId);
+}
+
+let settings    = JSON.parse(localStorage.getItem('precpc_settings')||'{}');
+let selectedCorners = 0;
+let sendingResharpen = null;
+
+// Convenience getters for active study
+function studyMaster(){ return getActiveStudy(); }
+function dailyLogs(){   return getStudyDailyLogs(getActiveStudyId()); }
+function toolChanges(){ return getStudyToolChanges(getActiveStudyId()); }
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+function switchTab(t){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pane-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='dashboard') renderDashboard();
+  if(t==='analysis')  renderAnalysis();
+  if(t==='tools')     renderTodayToolChanges();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════
+function saveSettings(){
+  settings.sheetsUrl   = document.getElementById('sheets-url')?.value||'';
+  settings.personName  = document.getElementById('person-name')?.value||'';
+  settings.companyName = document.getElementById('company-name')?.value||'ATF';
+  localStorage.setItem('precpc_settings',JSON.stringify(settings));
+}
+
+function loadSettings(){
+  if(settings.sheetsUrl)  document.getElementById('sheets-url').value=settings.sheetsUrl;
+  if(settings.personName) document.getElementById('person-name').value=settings.personName;
+  if(settings.companyName && document.getElementById('company-name'))
+    document.getElementById('company-name').value=settings.companyName;
+}
+
+async function testConnection(){
+  const url=document.getElementById('sheets-url').value.trim();
+  const status=document.getElementById('conn-status');
+  if(!url){status.textContent='⚠️ Enter URL first';status.style.color='var(--amber)';return;}
+  status.textContent='🔄 Testing...';
+  try{
+    await fetch(url,{method:'GET',mode:'no-cors'});
+    status.textContent='✅ Connection successful';status.style.color='var(--green)';
+  }catch(e){
+    status.textContent='❌ Could not reach URL — check and retry';status.style.color='var(--red)';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MASTER FILE LOADING
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// SHEETJS EXCEL PARSER — reads ATF_PreCPC_Study_Master.xlsx
+// Extracts: Study Details, Machines, Tools, Rejection Codes
+// ═══════════════════════════════════════════════════════════
+
+async function loadMasterFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('upload-status');
+  status.innerHTML = '<div style="padding:10px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:var(--r);color:var(--cyan)">🔄 Reading Excel file — please wait...</div>';
+
+  // Check SheetJS loaded
+  if(typeof XLSX === 'undefined'){
+    status.innerHTML = '<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:var(--r);color:var(--red)">❌ SheetJS library not loaded — check internet connection and retry.</div>';
+    return;
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const wb = XLSX.read(arrayBuffer, {type:'array', cellText:true, cellDates:true});
+
+    // ── Parse Sheet 1: Study Details ──────────────────────────────────────
+    const studyDetails = parseStudyDetails(wb);
+
+    // ── Parse Sheet 2: Machine Master ─────────────────────────────────────
+    const machines = parseMachines(wb);
+
+    // ── Parse Sheet 3: Tool Master ────────────────────────────────────────
+    const toolsByMachine = parseTools(wb, machines);
+
+    // ── Parse Sheet 4: Rejection Codes ────────────────────────────────────
+    const rejectionCodes = parseRejectionCodes(wb);
+
+    // ── Build parsed data object ──────────────────────────────────────────
+    const parsed = {
+      // From Sheet 1
+      customer:     studyDetails.customer || file.name.replace('.xlsx',''),
+      plant:        studyDetails.plant || '',
+      component:    studyDetails.component || '',
+      material:     studyDetails.material || '',
+      drawingNo:    studyDetails.drawingNo || '',
+      monthlyTarget:studyDetails.monthlyTarget || 0,
+      workingDays:  studyDetails.workingDays || 26,
+      shifts:       studyDetails.shifts || 3,
+      currentSpend: studyDetails.currentSpend || 0,
+      challenges:   studyDetails.challenges || [],
+      // From Sheet 2
+      machines:     machines,
+      machineDetails: parseMachineDetails(wb),
+      // From Sheet 3
+      tools:        toolsByMachine,
+      allTools:     parseAllTools(wb),
+      // From Sheet 4
+      rejectionCodes: rejectionCodes,
+      // Meta
+      fileName:     file.name,
+      parsedAt:     new Date().toISOString(),
+    };
+
+    // ── Show parse result ─────────────────────────────────────────────────
+    const toolCount = Object.values(toolsByMachine).flat().length;
+    status.innerHTML = buildUploadSuccessCard(parsed, machines.length, toolCount, rejectionCodes.length);
+
+    // ── Update active study with parsed data ──────────────────────────────
+    const activeId = getActiveStudyId();
+    if(activeId){
+      const studies = getStudies();
+      const idx = studies.findIndex(s=>s.id===activeId);
+      if(idx>-1){
+        studies[idx] = {
+          ...studies[idx],
+          ...parsed,
+          // Keep study management fields
+          id:         studies[idx].id,
+          status:     studies[idx].status,
+          startDate:  studies[idx].startDate,
+          duration:   studies[idx].duration,
+          studyPerson:studies[idx].studyPerson,
+          createdAt:  studies[idx].createdAt,
+        };
+        saveStudies(studies);
+      }
+    } else {
+      // No active study — prompt to create one first
+      status.innerHTML += '<div style="margin-top:8px;padding:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:var(--r);color:var(--amber);font-size:11px">⚠️ No active study selected. Create a study first using + New Study, then re-upload this file.</div>';
+      return;
+    }
+
+    // ── Populate rejection code dropdown ──────────────────────────────────
+    populateRejectionDropdown(rejectionCodes);
+    updateActiveStudyDisplay();
+    renderStudyList();
+    showToast(`✅ Master sheet loaded — ${machines.length} machines · ${toolCount} tools`,'ok');
+
+  } catch(err) {
+    console.error('Excel parse error:', err);
+    status.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:var(--r);color:var(--red)">
+      ❌ Error reading file: ${err.message}<br/>
+      <span style="font-size:10px;color:var(--fog)">Make sure you are uploading ATF_PreCPC_Study_Master.xlsx (the correct template)</span>
+    </div>`;
+  }
+}
+
+// ── Sheet 1 parser: Study Details ────────────────────────────────────────────
+function parseStudyDetails(wb){
+  const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('study')||n.includes('1.'))||wb.SheetNames[0];
+  if(!sheetName) return {};
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  const result = {};
+
+  // Scan all rows for known field labels in column A, value in column B or D
+  rows.forEach(function(row){
+    const label = String(row[0]||'').toLowerCase().trim();
+    const val1  = String(row[1]||'').trim();
+    const val2  = String(row[4]||'').trim();
+
+    if(label.includes('customer') || label.includes('company')) {
+      if(val1 && !result.customer) result.customer = val1;
+    }
+    if(label.includes('plant') || label.includes('site')) {
+      if(val2 && !result.plant) result.plant = val2;
+    }
+    if(label.includes('component') && !label.includes('detail')) {
+      if(val1 && !result.component) result.component = val1;
+    }
+    if(label.includes('drawing')) {
+      if(val2 && !result.drawingNo) result.drawingNo = val2;
+    }
+    if(label.includes('material') && label.includes('grade')) {
+      if(val1 && !result.material) result.material = val1;
+    }
+    if(label.includes('monthly production target')) {
+      const n = parseFloat(val2||val1);
+      if(n>0) result.monthlyTarget = n;
+    }
+    if(label.includes('working days')) {
+      const n = parseFloat(val2||val1);
+      if(n>0) result.workingDays = n;
+    }
+    if(label.includes('number of shifts') || label.includes('shifts per day')) {
+      const n = parseFloat(val2||val1);
+      if(n>0) result.shifts = n;
+    }
+    if(label.includes('monthly tooling spend') || label.includes('tooling spend')) {
+      const n = parseFloat((val2||val1).replace(/[₹,]/g,''));
+      if(n>0) result.currentSpend = n;
+    }
+    // Collect challenges
+    if((label.includes('challenge') || label.includes('bottleneck') || label.includes('quality issue')) && val1){
+      if(!result.challenges) result.challenges = [];
+      result.challenges.push(val1);
+    }
+  });
+  return result;
+}
+
+// ── Sheet 2 parser: Machine Master ───────────────────────────────────────────
+function parseMachines(wb){
+  const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('machine')||n.includes('2.'))||wb.SheetNames[1];
+  if(!sheetName) return [];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  // Find header row (has "Machine" in it)
+  let headerIdx = rows.findIndex(r=>r.some(c=>String(c).toLowerCase().includes('machine')));
+  if(headerIdx<0) headerIdx=0;
+  const machines = [];
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const row = rows[i];
+    // Machine number is typically column B (index 1)
+    const mcNo = String(row[1]||'').trim();
+    if(mcNo && mcNo!=='Sr' && !mcNo.toLowerCase().includes('machine')) {
+      machines.push(mcNo);
+    }
+  }
+  return machines.filter(Boolean);
+}
+
+// ── Sheet 2 parser: Full machine details ─────────────────────────────────────
+function parseMachineDetails(wb){
+  const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('machine')||n.includes('2.'))||wb.SheetNames[1];
+  if(!sheetName) return {};
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  let headerIdx = rows.findIndex(r=>r.some(c=>String(c).toLowerCase().includes('machine')));
+  if(headerIdx<0) headerIdx=0;
+  const hdrs = rows[headerIdx].map(c=>String(c).toLowerCase().trim());
+  const details = {};
+
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const row = rows[i];
+    const mcNo = String(row[1]||'').trim();
+    if(!mcNo || mcNo.toLowerCase().includes('machine')) continue;
+    const obj = {};
+    hdrs.forEach(function(h,ci){
+      if(h && row[ci]!==undefined && row[ci]!=='') obj[h]=row[ci];
+    });
+    details[mcNo] = {
+      type:        String(row[2]||'').trim(),
+      make:        String(row[3]||'').trim(),
+      operations:  parseInt(row[4])||0,
+      cycleTime:   parseFloat(row[5])||0,
+      shiftTarget: parseFloat(row[6])||0,
+      dailyTarget: parseFloat(row[7])||0,
+      monthlyTarget:parseFloat(row[8])||0,
+      coolant:     String(row[9]||'').trim(),
+      remarks:     String(row[11]||'').trim(),
+    };
+  }
+  return details;
+}
+
+// ── Sheet 3 parser: Tool Master ───────────────────────────────────────────────
+function parseTools(wb, machines){
+  const allTools = parseAllTools(wb);
+  // Group by machine number
+  const byMachine = {};
+  machines.forEach(m=>{ byMachine[m]=[]; });
+
+  allTools.forEach(function(tool){
+    const mc = tool.machineNo;
+    if(!mc) return;
+    if(!byMachine[mc]) byMachine[mc] = [];
+    byMachine[mc].push(tool);
+  });
+  return byMachine;
+}
+
+function parseAllTools(wb){
+  const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('tool')||n.includes('3.'))||wb.SheetNames[2];
+  if(!sheetName) return [];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+  // Find header row
+  let headerIdx = rows.findIndex(r=>r.some(c=>{
+    const s=String(c).toLowerCase();
+    return s.includes('machine') || s.includes('operation') || s.includes('tool');
+  }));
+  if(headerIdx<0) headerIdx=3; // default — tool master has 3 intro rows
+  const tools = [];
+
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const row = rows[i];
+    // Skip if no machine number or tool description
+    const mcNo = String(row[1]||'').trim();
+    const toolDesc = String(row[3]||'').trim();
+    if(!mcNo || !toolDesc || mcNo==='0') continue;
+    // Skip total row
+    if(toolDesc.toLowerCase().includes('total')) continue;
+
+    const tool = {
+      machineNo:      mcNo,
+      operation:      String(row[2]||'').trim(),
+      name:           toolDesc,
+      code:           String(row[4]||'').trim(),
+      type:           String(row[5]||'I').trim().toUpperCase(), // I/R/F/S
+      grade:          String(row[6]||'').trim(),
+      corners:        parseInt(row[7])||1,
+      maxResharpen:   parseInt(row[8])||0,
+      declaredLife:   parseFloat(row[9])||0,
+      rpm:            parseFloat(row[10])||0,
+      feed:           parseFloat(row[11])||0,
+      doc:            parseFloat(row[12])||0,
+      unitPrice:      parseFloat(String(row[13]||'0').replace(/[₹,]/g,''))||0,
+      monthlyQty:     parseFloat(row[14])||0,
+      monthlySpend:   parseFloat(String(row[15]||'0').replace(/[₹,]/g,''))||0,
+      supplier:       String(row[16]||'').trim(),
+      remarks:        String(row[17]||'').trim(),
+    };
+    // Build display name
+    tool.displayName = `${tool.operation ? tool.operation+' — ' : ''}${tool.name}`;
+    tools.push(tool);
+  }
+  return tools;
+}
+
+// ── Sheet 4 parser: Rejection Codes ──────────────────────────────────────────
+function parseRejectionCodes(wb){
+  const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('reject')||n.includes('4.'))||wb.SheetNames[3];
+  if(!sheetName) return [];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+  let headerIdx = rows.findIndex(r=>r.some(c=>String(c).toLowerCase().includes('code')));
+  if(headerIdx<0) headerIdx=2;
+  const codes = [];
+
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const row = rows[i];
+    const code = String(row[0]||'').trim();
+    const reason = String(row[1]||'').trim();
+    if(code && reason && !code.toLowerCase().includes('code')){
+      codes.push({
+        code,
+        reason,
+        description: String(row[2]||'').trim(),
+        category:    String(row[3]||'').trim(),
+      });
+    }
+  }
+  return codes;
+}
+
+// ── Populate rejection dropdown from parsed codes ─────────────────────────────
+function populateRejectionDropdown(codes){
+  const sel = document.getElementById('d-rej-reason');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Select reason —</option>';
+  codes.forEach(function(c){
+    const opt = document.createElement('option');
+    opt.value = c.code;
+    opt.textContent = `${c.code} — ${c.reason}`;
+    sel.appendChild(opt);
+  });
+  // Fallback standard codes if none parsed
+  if(!codes.length){
+    [['R01','Dimensional — OD oversize'],['R02','Dimensional — OD undersize'],
+     ['R03','Dimensional — ID oversize'],['R04','Dimensional — ID undersize'],
+     ['R05','Surface finish — Ra not achieved'],['R06','Chatter marks'],
+     ['R07','Burr at edge'],['R08','Insert chipping mark'],
+     ['R09','Concentricity / Runout'],['R10','Tool breakage']
+    ].forEach(function([code,reason]){
+      const opt=document.createElement('option');
+      opt.value=code; opt.textContent=`${code} — ${reason}`;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+// ── Build upload success card ─────────────────────────────────────────────────
+function buildUploadSuccessCard(parsed, machineCount, toolCount, rejCount){
+  return `
+  <div style="background:var(--iron);border:1.5px solid rgba(16,185,129,.3);border-radius:var(--r2);overflow:hidden;margin-top:8px">
+    <div style="background:rgba(16,185,129,.1);padding:10px 14px;border-bottom:1px solid rgba(16,185,129,.2)">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;color:var(--green)">
+        ✅ Master Sheet Parsed Successfully
+      </div>
+      <div style="font-size:10px;color:var(--fog);margin-top:2px">${parsed.fileName}</div>
+    </div>
+    <div style="padding:12px 14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+        <div style="text-align:center;background:rgba(255,255,255,.04);border-radius:var(--r);padding:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--cyan)">${machineCount}</div>
+          <div style="font-size:9px;color:var(--fog)">Machines</div>
+        </div>
+        <div style="text-align:center;background:rgba(255,255,255,.04);border-radius:var(--r);padding:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--violet)">${toolCount}</div>
+          <div style="font-size:9px;color:var(--fog)">Tools</div>
+        </div>
+        <div style="text-align:center;background:rgba(255,255,255,.04);border-radius:var(--r);padding:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--red)">${rejCount}</div>
+          <div style="font-size:9px;color:var(--fog)">Rej. Codes</div>
+        </div>
+      </div>
+      <div style="font-size:11px;line-height:1.9;color:var(--mist)">
+        <div>🏭 <strong>Customer:</strong> ${parsed.customer||'—'}</div>
+        <div>⚙️ <strong>Component:</strong> ${parsed.component||'—'}</div>
+        ${parsed.monthlyTarget?`<div>🎯 <strong>Monthly Target:</strong> ${parsed.monthlyTarget.toLocaleString('en-IN')} pcs</div>`:''}
+        ${parsed.currentSpend?`<div>💰 <strong>Current Spend:</strong> ₹${parsed.currentSpend.toLocaleString('en-IN')}/month</div>`:''}
+      </div>
+      ${machineCount>0?`
+      <div style="margin-top:8px;padding:8px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:var(--r)">
+        <div style="font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Machines Loaded</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${parsed.machines.map(m=>`<span style="font-size:10px;padding:2px 7px;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);border-radius:4px;color:var(--cyan)">${m}</span>`).join('')}
+        </div>
+      </div>`:''}
+    </div>
+  </div>`;
+}
+
+function showStudyLoaded(data){
+  // Legacy function — now handled by updateActiveStudyDisplay
+  updateActiveStudyDisplay();
+}
+
+function populateMachineDropdowns(){
+  const study = getActiveStudy();
+  if(!study) return;
+  const machines = study.machines||[];
+  ['d-machine','t-machine'].forEach(function(id){
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    sel.innerHTML = '<option value="">— Select machine —</option>';
+    machines.forEach(function(m){
+      const opt = document.createElement('option');
+      const details = (study.machineDetails||{})[m]||{};
+      opt.value = m;
+      opt.textContent = details.type ? `M/C ${m}  [${details.type}]` : `M/C ${m}`;
+      opt.dataset.details = JSON.stringify(details);
+      sel.appendChild(opt);
+    });
+    if(!machines.length){
+      sel.innerHTML = '<option value="">— Upload Master Sheet first —</option>';
+    }
+  });
+}
+
+function populateToolDropdown(){
+  const machine  = document.getElementById('t-machine').value;
+  const sel      = document.getElementById('t-tool');
+  sel.innerHTML  = '<option value="">— Select tool —</option>';
+  const study    = getActiveStudy();
+  if(!study || !machine) return;
+
+  const toolsByMachine = study.tools || {};
+  const machineTools   = toolsByMachine[machine] || [];
+
+  if(!machineTools.length){
+    sel.innerHTML = '<option value="">— No tools found for this machine —</option>';
+    return;
+  }
+
+  // Group by operation
+  const byOp = {};
+  machineTools.forEach(function(t){
+    const op = t.operation || 'General';
+    if(!byOp[op]) byOp[op] = [];
+    byOp[op].push(t);
+  });
+
+  Object.entries(byOp).forEach(function([op, tools]){
+    if(Object.keys(byOp).length > 1){
+      const grp = document.createElement('optgroup');
+      grp.label = op;
+      tools.forEach(function(t){
+        const opt = document.createElement('option');
+        opt.value = t.code || t.name;
+        opt.textContent = t.name;
+        opt.dataset.tool = JSON.stringify(t);
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    } else {
+      tools.forEach(function(t){
+        const opt = document.createElement('option');
+        opt.value = t.code || t.name;
+        opt.textContent = t.name;
+        opt.dataset.tool = JSON.stringify(t);
+        sel.appendChild(opt);
+      });
+    }
+  });
+}
+
+function onToolSelected(){
+  const sel=document.getElementById('t-tool');
+  const opt=sel.options[sel.selectedIndex];
+  const infoDiv=document.getElementById('t-tool-info');
+  const cornerSec=document.getElementById('t-corner-section');
+  const rshSec=document.getElementById('t-resharpen-section');
+
+  if(!opt||!opt.dataset.tool){
+    infoDiv.style.display='none';cornerSec.style.display='none';rshSec.style.display='none';return;
+  }
+  const t=JSON.parse(opt.dataset.tool);
+  infoDiv.style.display='block';
+  infoDiv.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div><span style="color:var(--fog);font-size:9px">TYPE</span><br/><strong style="color:var(--amber)">${t.type||'—'}</strong></div>
+      <div><span style="color:var(--fog);font-size:9px">DECLARED LIFE</span><br/><strong style="color:var(--green)">${t.declaredLife||'—'} pcs</strong></div>
+      <div><span style="color:var(--fog);font-size:9px">CORNERS/EDGES</span><br/><strong style="color:var(--cyan)">${t.corners||'—'}</strong></div>
+      <div><span style="color:var(--fog);font-size:9px">MAX RESHARPENINGS</span><br/><strong style="color:var(--violet)">${t.maxReharpen||'—'}</strong></div>
+    </div>`;
+  // Show corners for inserts, resharpening for round tools
+  cornerSec.style.display=(t.type==='I')?'block':'none';
+  rshSec.style.display=(t.type==='R'||t.type==='F'||t.type==='S')?'block':'none';
+  selectedCorners=0;
+  document.querySelectorAll('[id^="corner-btn-"]').forEach(b=>{
+    b.style.borderColor='var(--slate)';b.style.background='var(--iron)';});
+  sendingResharpen=null;
+  document.getElementById('rsh-count-section').style.display='none';
+  ['rsh-yes','rsh-no'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(b){b.style.borderColor='var(--slate)';b.style.background='var(--iron)';}
+  });
+}
+
+function selectCorners(n){
+  selectedCorners=n;
+  document.getElementById('t-corners').value=n;
+  document.querySelectorAll('[id^="corner-btn-"]').forEach(b=>{
+    b.style.borderColor='var(--slate)';b.style.background='var(--iron)';
+    b.style.color='var(--mist)';
+  });
+  const btn=document.getElementById('corner-btn-'+n);
+  if(btn){
+    btn.style.borderColor=n===4?'rgba(16,185,129,.5)':'rgba(245,158,11,.5)';
+    btn.style.background=n===4?'rgba(16,185,129,.12)':'rgba(245,158,11,.12)';
+    btn.style.color=n===4?'var(--green)':'var(--amber)';
+  }
+}
+
+function setResharpen(yes){
+  sendingResharpen=yes;
+  const yBtn=document.getElementById('rsh-yes');
+  const nBtn=document.getElementById('rsh-no');
+  const countSec=document.getElementById('rsh-count-section');
+  if(yes){
+    yBtn.style.borderColor='rgba(16,185,129,.5)';yBtn.style.background='rgba(16,185,129,.1)';yBtn.style.color='var(--green)';
+    nBtn.style.borderColor='var(--slate)';nBtn.style.background='var(--iron)';nBtn.style.color='var(--mist)';
+    countSec.style.display='block';
+  }else{
+    nBtn.style.borderColor='rgba(239,68,68,.5)';nBtn.style.background='rgba(239,68,68,.08)';nBtn.style.color='var(--red)';
+    yBtn.style.borderColor='var(--slate)';yBtn.style.background='var(--iron)';yBtn.style.color='var(--mist)';
+    countSec.style.display='none';
+  }
+}
+
+function updateLifeIndicator(){
+  const life=parseFloat(document.getElementById('t-life').value)||0;
+  const sel=document.getElementById('t-tool');
+  const opt=sel.options[sel.selectedIndex];
+  if(!opt||!opt.dataset.tool||!life) return;
+  const t=JSON.parse(opt.dataset.tool);
+  const std=parseFloat(t.declaredLife)||0;
+  if(!std) return;
+  const pct=Math.round((life/std)*100);
+  const ind=document.getElementById('t-life-indicator');
+  ind.style.display='block';
+  if(pct>=90){
+    ind.style.cssText='display:block;margin-bottom:9px;padding:7px 10px;border-radius:var(--r);font-size:11px;font-weight:600;text-align:center;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)';
+    ind.textContent=`✅ Good life — ${life} pcs (${pct}% of supplier's ${std} pcs)`;
+  } else if(pct>=70){
+    ind.style.cssText='display:block;margin-bottom:9px;padding:7px 10px;border-radius:var(--r);font-size:11px;font-weight:600;text-align:center;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--amber)';
+    ind.textContent=`⚡ Below supplier claim — ${life} pcs (${pct}%) — Customer not getting full value`;
+  } else {
+    ind.style.cssText='display:block;margin-bottom:9px;padding:7px 10px;border-radius:var(--r);font-size:11px;font-weight:600;text-align:center;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)';
+    ind.textContent=`🚫 Significantly low — ${life} pcs (${pct}%) — Major improvement opportunity for ATF`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DAILY ENTRY SUBMIT
+// ═══════════════════════════════════════════════════════════
+function submitDailyEntry(){
+  const person=document.getElementById('d-person').value.trim();
+  const date=document.getElementById('d-date').value;
+  const machine=document.getElementById('d-machine').value;
+  const shift=document.getElementById('d-shift').value;
+  const prod=parseFloat(document.getElementById('d-prod').value)||0;
+  const rej=parseFloat(document.getElementById('d-rej').value)||0;
+  const rejReason=document.getElementById('d-rej-reason').value;
+  const downtime=parseFloat(document.getElementById('d-downtime').value)||0;
+  const notes=document.getElementById('d-notes').value;
+
+  if(!person){showToast('Enter your name','err');return;}
+  if(!date){showToast('Select date','err');return;}
+  if(!machine){showToast('Select machine','err');return;}
+  if(!shift){showToast('Select shift','err');return;}
+  if(prod<=0){showToast('Enter production count','err');return;}
+  if(rej>0&&!rejReason){showToast('Select rejection reason','err');return;}
+
+  const activeStudy=getActiveStudy();
+  if(!activeStudy){showToast('No active study — select a study in Settings','err');return;}
+  const entry={
+    id:'d'+Date.now(),
+    studyId:activeStudy.id,
+    customer:activeStudy.customer,
+    component:activeStudy.component,
+    date,person,machine,shift,
+    production:prod,rejection:rej,rejReason,downtime,notes,
+    loggedAt:new Date().toISOString()
+  };
+  const allLogs=getAllDailyLogs();
+  allLogs.unshift(entry);
+  saveAllDailyLogs(allLogs);
+
+  if(settings.sheetsUrl){
+    try{fetch(settings.sheetsUrl,{method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...entry,type:'PRECPC_DAILY'})});}catch(e){}
+  }
+
+  // Reset
+  document.getElementById('d-prod').value='';
+  document.getElementById('d-rej').value='';
+  document.getElementById('d-rej-reason').value='';
+  document.getElementById('d-downtime').value='';
+  document.getElementById('d-notes').value='';
+
+  updateDayBadge();
+  showToast(`✅ Production logged — ${prod} pcs · ${machine} · ${shift} Shift`,'ok');
+  switchTab('tools');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOL CHANGE SUBMIT
+// ═══════════════════════════════════════════════════════════
+function submitToolChange(){
+  const date=document.getElementById('t-date').value;
+  const shift=document.getElementById('t-shift').value;
+  const machine=document.getElementById('t-machine').value;
+  const tool=document.getElementById('t-tool').value;
+  const qty=parseFloat(document.getElementById('t-qty').value)||0;
+  const life=parseFloat(document.getElementById('t-life').value)||0;
+  const reason=document.getElementById('t-reason').value;
+  const corners=selectedCorners;
+  const source=document.getElementById('t-source').value;
+  const remarks=document.getElementById('t-remarks').value;
+  const rshCount=parseFloat(document.getElementById('t-rsh-count')?.value)||0;
+
+  if(!date){showToast('Select date','err');return;}
+  if(!shift){showToast('Select shift','err');return;}
+  if(!machine){showToast('Select machine','err');return;}
+  if(!tool){showToast('Select tool','err');return;}
+  if(qty<=0){showToast('Enter quantity changed','err');return;}
+  if(!reason){showToast('Select change reason','err');return;}
+
+  const sel=document.getElementById('t-tool');
+  const opt=sel.options[sel.selectedIndex];
+  const toolData=opt?.dataset?.tool?JSON.parse(opt.dataset.tool):{};
+
+  // Calculate corner efficiency
+  const totalCorners=parseInt(toolData.corners)||0;
+  const cornerEfficiency=totalCorners>0&&corners>0?Math.round((corners/totalCorners)*100):null;
+  const lifePct=toolData.declaredLife&&life>0?Math.round((life/toolData.declaredLife)*100):null;
+
+  const activeStudy=getActiveStudy();
+  if(!activeStudy){showToast('No active study — select study in Settings','err');return;}
+  const entry={
+    id:'tc'+Date.now(),
+    studyId:activeStudy.id,
+    customer:activeStudy.customer,
+    component:activeStudy.component,
+    date,shift,machine,
+    tool,toolName:tool,toolType:toolData.type||'',
+    qty,lifeAchieved:life,lifePct,
+    changeReason:reason,
+    cornersUsed:corners||null,
+    totalCorners:totalCorners||null,
+    cornerEfficiency,
+    resharpening:sendingResharpen,
+    resharpenCount:rshCount,
+    toolCost:toolData.unitPrice||0,
+    source,remarks,
+    loggedAt:new Date().toISOString()
+  };
+  const allTCs=getAllToolChanges();
+  allTCs.unshift(entry);
+  saveAllToolChanges(allTCs);
+
+  if(settings.sheetsUrl){
+    try{fetch(settings.sheetsUrl,{method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...entry,type:'PRECPC_TC'})});}catch(e){}
+  }
+
+  // Reset tool fields
+  document.getElementById('t-tool').value='';
+  document.getElementById('t-qty').value='';
+  document.getElementById('t-life').value='';
+  document.getElementById('t-reason').value='';
+  document.getElementById('t-remarks').value='';
+  document.getElementById('t-tool-info').style.display='none';
+  document.getElementById('t-life-indicator').style.display='none';
+  document.getElementById('t-corner-section').style.display='none';
+  document.getElementById('t-resharpen-section').style.display='none';
+  selectedCorners=0;sendingResharpen=null;
+
+  renderTodayToolChanges();
+  const effMsg=cornerEfficiency!==null?` · Corner util: ${cornerEfficiency}%`:'';
+  showToast(`🔧 Tool change logged — ${qty} pcs · ${tool}${effMsg}`,'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function renderDashboard(){
+  const logs=dailyLogs();
+  const tcs=toolChanges();
+  const totalProd=logs.reduce((s,e)=>s+(e.production||0),0);
+  const totalRej=logs.reduce((s,e)=>s+(e.rejection||0),0);
+  const totalToolCost=tcs.reduce((s,e)=>s+(e.toolCost*e.qty||0),0);
+  const uniqueDays=new Set(logs.map(e=>e.date)).size;
+  const avgRejPct=totalProd>0?((totalRej/totalProd)*100).toFixed(1):0;
+  const cpc=totalProd>0&&totalToolCost>0?(totalToolCost/totalProd).toFixed(2):0;
+
+  document.getElementById('kpi-days').textContent=uniqueDays||'0';
+  document.getElementById('kpi-cpc').textContent=cpc>0?'₹'+cpc:'—';
+  document.getElementById('kpi-prod').textContent=totalProd>0?totalProd.toLocaleString('en-IN'):'0';
+  document.getElementById('kpi-rej').textContent=avgRejPct>0?avgRejPct+'%':'0%';
+  document.getElementById('entry-count').textContent=`${uniqueDays} days logged`;
+
+  updateDayBadge();
+
+  // Tool cost breakdown
+  const newCost=tcs.reduce((s,e)=>s+(e.resharpenCount===0?e.toolCost*e.qty||0:0),0);
+  const reshCost=tcs.reduce((s,e)=>s+(e.resharpening?e.toolCost*e.qty||0:0),0);
+  const toolDiv=document.getElementById('tool-cost-summary');
+  if(tcs.length===0){
+    toolDiv.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>No tool changes logged yet</p></div>';
+  } else {
+    toolDiv.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="text-align:center;padding:10px;background:var(--iron);border-radius:var(--r)">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--amber)">
+            ${toolChanges.length}</div>
+          <div style="font-size:9px;color:var(--fog)">Tool Changes</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--iron);border-radius:var(--r)">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--red)">
+            ₹${totalToolCost.toLocaleString('en-IN')}</div>
+          <div style="font-size:9px;color:var(--fog)">Total Tool Cost</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--iron);border-radius:var(--r)">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--green)">
+            ${cpc>0?'₹'+cpc:'—'}</div>
+          <div style="font-size:9px;color:var(--fog)">Cust. CPC</div>
+        </div>
+      </div>`;
+  }
+
+  // Recent entries
+  const recentDiv=document.getElementById('recent-entries');
+  if(logs.length===0){
+    recentDiv.innerHTML='<div class="empty"><div class="empty-icon">📅</div><p>No entries yet</p></div>';
+  } else {
+    recentDiv.innerHTML=logs.slice(0,5).map(e=>`
+      <div class="entry-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <strong style="font-size:13px">${e.machine} · ${e.shift} Shift</strong>
+          <span style="font-size:10px;color:var(--fog)">${e.date}</span>
+        </div>
+        <div style="font-size:12px;color:var(--green)">✅ ${e.production} pcs produced</div>
+        ${e.rejection>0?`<div style="font-size:11px;color:var(--red)">❌ ${e.rejection} rejected — ${e.rejReason||'reason not specified'}</div>`:''}
+      </div>`).join('');
+  }
+}
+
+function renderTodayToolChanges(){
+  const today=new Date().toISOString().split('T')[0];
+  const todayTCs=toolChanges().filter(e=>e.date===today);
+  const div=document.getElementById('today-tool-changes');
+  if(todayTCs.length===0){
+    div.innerHTML='<div class="empty"><div class="empty-icon">🔧</div><p>No tool changes logged today</p></div>';
+    return;
+  }
+  div.innerHTML=todayTCs.map(e=>`
+    <div class="tool-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="color:var(--violet);font-size:13px">${e.tool}</strong>
+        <span style="font-size:10px;color:var(--fog)">${e.machine} · ${e.shift}</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px">
+        <span style="color:var(--mist)">Qty: <strong>${e.qty}</strong></span>
+        ${e.lifeAchieved?`<span style="color:${e.lifePct>=90?'var(--green)':e.lifePct>=70?'var(--amber)':'var(--red)'}">Life: ${e.lifeAchieved} pcs (${e.lifePct||'?'}%)</span>`:''}
+        ${e.cornersUsed?`<span style="color:var(--cyan)">Corners: ${e.cornersUsed}/${e.totalCorners}</span>`:''}
+        <span style="color:var(--fog)">${e.changeReason}</span>
+      </div>
+      ${e.source!=='direct'?`<div style="font-size:10px;color:var(--fog);margin-top:3px">📱 Source: ${e.source}</div>`:''}
+    </div>`).join('');
+}
+
+function renderAnalysis(){
+  const div=document.getElementById('analysis-body');
+  const logs2=dailyLogs(); const tcs2=toolChanges();
+  if(logs2.length<3){
+    div.innerHTML='<div class="empty"><div class="empty-icon">📈</div><p>Need at least 3 days of data for analysis</p></div>';
+    return;
+  }
+
+  // Tool life analysis
+  const byTool={};
+  tcs2.forEach(tc=>{
+    if(!byTool[tc.tool]) byTool[tc.tool]={changes:0,totalLife:0,lifePcts:[],corners:[]};
+    byTool[tc.tool].changes+=tc.qty;
+    if(tc.lifeAchieved) byTool[tc.tool].totalLife+=tc.lifeAchieved;
+    if(tc.lifePct) byTool[tc.tool].lifePcts.push(tc.lifePct);
+    if(tc.cornersUsed) byTool[tc.tool].corners.push(tc.cornersUsed);
+  });
+
+  const toolRows=Object.entries(byTool).map(([tool,data])=>{
+    const avgLife=data.changes>0?Math.round(data.totalLife/data.changes):0;
+    const avgLifePct=data.lifePcts.length>0?Math.round(data.lifePcts.reduce((a,b)=>a+b,0)/data.lifePcts.length):0;
+    const avgCorners=data.corners.length>0?(data.corners.reduce((a,b)=>a+b,0)/data.corners.length).toFixed(1):null;
+    const color=avgLifePct>=90?'var(--green)':avgLifePct>=70?'var(--amber)':'var(--red)';
+    return `<div class="tool-row">
+      <div style="font-size:12px;font-weight:700;color:var(--violet);margin-bottom:4px">${tool}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px">
+        <div><span style="color:var(--fog)">Changes</span><br/><strong>${data.changes}</strong></div>
+        <div><span style="color:var(--fog)">Avg Life</span><br/><strong style="color:${color}">${avgLifePct}%</strong></div>
+        ${avgCorners?`<div><span style="color:var(--fog)">Avg Corners</span><br/><strong style="color:var(--cyan)">${avgCorners}/total</strong></div>`:`<div></div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  div.innerHTML=toolRows||'<div class="empty"><p>No tool change data yet</p></div>';
+
+  // CPC calculation
+  const totalProd2=logs2.reduce((s,e)=>s+(e.production||0),0);
+  const totalCost2=tcs2.reduce((s,e)=>s+(e.toolCost*e.qty||0),0);
+  const cpcDiv=document.getElementById('cpc-calc-body');
+  if(totalProd2>0&&totalCost2>0){
+    const cpc2=(totalCost2/totalProd2).toFixed(2);
+    cpcDiv.innerHTML=`
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;color:var(--amber)">
+          ₹${cpc2}
+        </div>
+        <div style="font-size:13px;color:var(--fog)">Customer's actual CPC per component</div>
+        <div style="font-size:10px;color:var(--fog);margin-top:4px">Based on ${logs2.length} entries · ${totalProd2.toLocaleString('en-IN')} pcs · ₹${totalCost2.toLocaleString('en-IN')} tool cost</div>
+      </div>
+      <div class="alert-banner alert-green">
+        💡 ATF's proposed CPC should be lower than ₹${cpc2}/pc. The gap between ₹${cpc2} and your proposed rate is your negotiation strength.
+      </div>`;
+  } else {
+    cpcDiv.innerHTML='<div class="empty"><div class="empty-icon">💰</div><p>Need tool cost data in master sheet to calculate CPC</p></div>';
+  }
+
+  // Corner utilization
+  const cornerDiv=document.getElementById('corner-util-body');
+  const insertChanges=tcs2.filter(e=>e.cornersUsed&&e.totalCorners);
+  if(insertChanges.length===0){
+    cornerDiv.innerHTML='<div class="empty"><div class="empty-icon">🔖</div><p>No insert data with corner tracking yet</p></div>';
+  } else {
+    const totalPossible=insertChanges.reduce((s,e)=>s+(e.totalCorners*e.qty),0);
+    const totalUsed=insertChanges.reduce((s,e)=>s+(e.cornersUsed*e.qty),0);
+    const utilPct=totalPossible>0?Math.round((totalUsed/totalPossible)*100):0;
+    const wastedCorners=totalPossible-totalUsed;
+    const wastedCost=insertChanges.reduce((s,e)=>s+(e.toolCost*(e.totalCorners-e.cornersUsed)/e.totalCorners*e.qty),0);
+
+    cornerDiv.innerHTML=`
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;
+          color:${utilPct>=90?'var(--green)':utilPct>=70?'var(--amber)':'var(--red)'}">
+          ${utilPct}%
+        </div>
+        <div style="font-size:12px;color:var(--fog)">Corner Utilization Rate</div>
+      </div>
+      <div style="background:var(--iron);border-radius:var(--r);padding:10px;margin-bottom:10px;font-size:11px;line-height:1.8">
+        <div>Corners possible: <strong>${totalPossible}</strong></div>
+        <div>Corners actually used: <strong style="color:var(--green)">${totalUsed}</strong></div>
+        <div>Corners WASTED: <strong style="color:var(--red)">${wastedCorners}</strong></div>
+        ${wastedCost>0?`<div>Estimated monthly waste: <strong style="color:var(--red)">₹${wastedCost.toLocaleString('en-IN')}</strong></div>`:''}
+      </div>
+      ${utilPct<80?`<div class="alert-banner alert-amber">
+        ⚡ Customer is wasting ${100-utilPct}% of insert capacity. ATF can immediately capture this saving by enforcing all-corner usage. 
+        This alone could reduce customer's tooling cost by ₹${Math.round(wastedCost).toLocaleString('en-IN')}/month.
+      </div>`:''}`;
+  }
+}
+
+function updateDayBadge(){updateActiveStudyDisplay();}
+
+function exportStudyData(){
+  // Export active study data
+  const activeId=getActiveStudyId();
+  if(activeId){exportStudyCSV(activeId);return;}
+  // Legacy fallback
+  const dlHeaders='Date,Person,Machine,Shift,Production,Rejection,RejReason,Downtime,Notes';
+  const dlRows=dailyLogs.map(e=>[e.date,e.person,e.machine,e.shift,e.production,e.rejection,e.rejReason||'',e.downtime,e.notes||''].join(','));
+  const dlCSV=[dlHeaders,...dlRows].join('\n');
+
+  const tcHeaders='Date,Shift,Machine,Tool,Qty,LifeAchieved,LifePct,Reason,CornersUsed,TotalCorners,CornerEff%,Resharpening,RshCount,Source,Remarks';
+  const tcRows=toolChanges.map(e=>[e.date,e.shift,e.machine,e.tool,e.qty,e.lifeAchieved||'',e.lifePct||'',e.changeReason,e.cornersUsed||'',e.totalCorners||'',e.cornerEfficiency||'',e.resharpening===true?'Yes':e.resharpening===false?'No':'',e.resharpenCount||'',e.source,e.remarks||''].join(','));
+  const tcCSV=[tcHeaders,...tcRows].join('\n');
+
+  [['ATF_PreCPC_Daily.csv',dlCSV],['ATF_PreCPC_ToolChanges.csv',tcCSV]].forEach(([name,content])=>{
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(content);
+    a.download=name; a.click();
+  });
+  showToast('📥 2 CSV files exported','ok');
+}
+
+function clearAllData(){
+  if(!confirm('Clear ALL study data? This cannot be undone.')) return;
+  if(!confirm('Clear ALL studies and ALL data? Cannot be undone.')) return;
+  localStorage.removeItem('precpc_studies');
+  localStorage.removeItem('precpc_all_daily');
+  localStorage.removeItem('precpc_all_tc');
+  localStorage.removeItem('precpc_active_study');
+  renderStudyList();
+  updateActiveStudyDisplay();
+  renderDashboard();
+  showToast('🗑️ All data cleared','ok');
+}
+
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// MULTI-STUDY MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+function showAddStudyModal(){
+  document.getElementById('add-study-modal').style.display='block';
+  document.getElementById('ns-start').value=new Date().toISOString().split('T')[0];
+  if(settings.personName) document.getElementById('ns-person').value=settings.personName;
+}
+
+function createNewStudy(){
+  const customer=document.getElementById('ns-customer').value.trim();
+  const plant=document.getElementById('ns-plant').value.trim();
+  const component=document.getElementById('ns-component').value.trim();
+  const material=document.getElementById('ns-material').value.trim();
+  const start=document.getElementById('ns-start').value;
+  const duration=parseInt(document.getElementById('ns-duration').value)||30;
+  const target=parseFloat(document.getElementById('ns-target').value)||0;
+  const person=document.getElementById('ns-person').value.trim();
+  const currentSpend=parseFloat(document.getElementById('ns-current-spend').value)||0;
+
+  if(!customer){showToast('Enter customer name','err');return;}
+  if(!component){showToast('Enter component name','err');return;}
+  if(!start){showToast('Select start date','err');return;}
+  if(!person){showToast('Enter study person name','err');return;}
+
+  const study={
+    id:'study-'+Date.now(),
+    customer, plant, component, material,
+    startDate:start, duration, target,
+    studyPerson:person, currentSpend,
+    status:'active',
+    createdAt:new Date().toISOString(),
+    machines:[], tools:{},
+  };
+
+  const studies=getStudies();
+  studies.unshift(study);
+  saveStudies(studies);
+
+  // Auto-activate new study
+  setActiveStudyId(study.id);
+  document.getElementById('add-study-modal').style.display='none';
+  renderStudyList();
+  updateActiveStudyDisplay();
+  showToast(`✅ Study created — ${customer} · ${component}`,'ok');
+
+  // Reset form
+  ['ns-customer','ns-plant','ns-component','ns-material','ns-target','ns-person','ns-current-spend']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ns-duration').value='30';
+}
+
+function renderStudyList(){
+  const studies=getStudies();
+  const container=document.getElementById('study-list-container');
+  if(!studies.length){
+    container.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>No studies yet — tap + New Study to begin</p></div>';
+    return;
+  }
+  const activeId=getActiveStudyId();
+  container.innerHTML=studies.map(s=>{
+    const isActive=s.id===activeId;
+    const startDate=new Date(s.startDate);
+    const daysDone=Math.max(0,Math.floor((new Date()-startDate)/86400000)+1);
+    const daysLeft=Math.max(0,s.duration-daysDone);
+    const pct=Math.min(100,Math.round((daysDone/s.duration)*100));
+    const logs=getStudyDailyLogs(s.id);
+    const tcs=getStudyToolChanges(s.id);
+    const totalProd=logs.reduce((sum,e)=>sum+(e.production||0),0);
+    const statusColor=s.status==='completed'?'var(--green)':isActive?'var(--amber)':'var(--fog)';
+    const statusLabel=s.status==='completed'?'✅ Completed':isActive?'🟢 Active':'⏸️ Paused';
+
+    return `<div style="background:var(--iron);border:1.5px solid ${isActive?'rgba(245,158,11,.4)':'var(--slate)'};
+      border-radius:var(--r2);padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;
+            color:${isActive?'var(--amber)':'var(--white)'}">${s.customer}</div>
+          <div style="font-size:11px;color:var(--fog)">${s.component}${s.plant?' · '+s.plant:''}</div>
+        </div>
+        <span style="font-size:10px;padding:3px 9px;border-radius:12px;font-weight:700;
+          background:${s.status==='completed'?'rgba(16,185,129,.15)':isActive?'rgba(245,158,11,.15)':'rgba(100,116,139,.1)'};
+          color:${statusColor}">${statusLabel}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px">
+        <div style="text-align:center;background:rgba(255,255,255,.04);border-radius:5px;padding:6px">
+          <div style="font-weight:700;color:var(--cyan);font-size:16px">${daysDone}/${s.duration}</div>
+          <div style="color:var(--fog)">Days Done</div>
+        </div>
+        <div style="text-align:center;background:rgba(255,255,255,.04);border-radius:5px;padding:6px">
+          <div style="font-weight:700;color:var(--green);font-size:16px">${totalProd.toLocaleString('en-IN')}</div>
+          <div style="color:var(--fog)">Pcs Logged</div>
+        </div>
+        <div style="text-align:center;background:rgba(255,255,255,.04);border-radius:5px;padding:6px">
+          <div style="font-weight:700;color:var(--violet);font-size:16px">${tcs.length}</div>
+          <div style="color:var(--fog)">Tool Changes</div>
+        </div>
+      </div>
+      <!-- Progress bar -->
+      <div class="progress-bar" style="margin-bottom:8px">
+        <div class="progress-fill" style="width:${pct}%;background:${pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--blue)'}"></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${!isActive&&s.status!=='completed'?`
+        <button onclick="switchToStudy('${s.id}')"
+          style="flex:2;padding:8px;background:linear-gradient(135deg,#b45309,#f59e0b);
+          border:none;border-radius:var(--r);color:#fff;font-family:'Barlow Condensed',sans-serif;
+          font-size:14px;font-weight:700;cursor:pointer">
+          ▶ Switch to This Study
+        </button>`:''}
+        ${isActive?`<div style="flex:2;padding:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+          border-radius:var(--r);text-align:center;font-size:12px;font-weight:700;color:var(--amber)">
+          ✅ Currently Active
+        </div>`:''}
+        <button onclick="exportStudyCSV('${s.id}')"
+          style="flex:1;padding:8px;background:var(--iron);border:1px solid var(--slate);
+          border-radius:var(--r);color:var(--mist);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer">
+          📥 Export
+        </button>
+        ${s.status!=='completed'?`
+        <button onclick="markStudyComplete('${s.id}')"
+          style="flex:1;padding:8px;background:var(--iron);border:1px solid rgba(16,185,129,.3);
+          border-radius:var(--r);color:var(--green);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer">
+          ✅ Complete
+        </button>`:''}
+        <button onclick="deleteStudy('${s.id}')"
+          style="padding:8px 12px;background:var(--iron);border:1px solid rgba(239,68,68,.3);
+          border-radius:var(--r);color:var(--red);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer">
+          🗑️
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function switchToStudy(id){
+  setActiveStudyId(id);
+  renderStudyList();
+  updateActiveStudyDisplay();
+  renderDashboard();
+  showToast('✅ Switched to study','ok');
+  switchTab('dashboard');
+}
+
+function markStudyComplete(id){
+  const studies=getStudies();
+  const s=studies.find(s=>s.id===id);
+  if(s){s.status='completed';s.completedAt=new Date().toISOString();}
+  saveStudies(studies);
+  renderStudyList();
+  showToast('✅ Study marked as completed','ok');
+}
+
+function deleteStudy(id){
+  const s=getStudies().find(s=>s.id===id);
+  if(!s) return;
+  if(!confirm(`Delete study for ${s.customer} — ${s.component}? ALL data will be lost.`)) return;
+  saveStudies(getStudies().filter(s=>s.id!==id));
+  saveAllDailyLogs(getAllDailyLogs().filter(e=>e.studyId!==id));
+  saveAllToolChanges(getAllToolChanges().filter(e=>e.studyId!==id));
+  if(getActiveStudyId()===id){
+    const remaining=getStudies();
+    setActiveStudyId(remaining.length?remaining[0].id:'');
+  }
+  renderStudyList();
+  updateActiveStudyDisplay();
+  renderDashboard();
+  showToast('🗑️ Study deleted','ok');
+}
+
+function updateActiveStudyDisplay(){
+  const study=getActiveStudy();
+  if(!study){
+    document.getElementById('no-study-banner').style.display='block';
+    document.getElementById('study-header').style.display='none';
+    document.getElementById('study-name-display').textContent='No study active — select in Settings';
+    document.getElementById('day-badge').textContent='Day —';
+    return;
+  }
+  document.getElementById('no-study-banner').style.display='none';
+  document.getElementById('study-header').style.display='block';
+  document.getElementById('dash-customer').textContent=study.customer;
+  document.getElementById('dash-component').textContent=
+    `${study.component}${study.plant?' · '+study.plant:''}${study.material?' · '+study.material:''}`;
+  document.getElementById('study-name-display').textContent=
+    `${study.customer} — ${study.component}`;
+  // Update day badge
+  const daysDone=Math.floor((new Date()-new Date(study.startDate))/86400000)+1;
+  document.getElementById('day-badge').textContent=
+    `Day ${Math.max(1,daysDone)}/${study.duration}`;
+  // Populate dropdowns from active study data
+  populateMachineDropdowns();
+  if(study.rejectionCodes && study.rejectionCodes.length){
+    populateRejectionDropdown(study.rejectionCodes);
+  }
+  // Pre-fill study person name
+  if(study.studyPerson){
+    const pEl=document.getElementById('d-person');
+    if(pEl&&!pEl.value) pEl.value=study.studyPerson;
+  }
+}
+
+function exportStudyCSV(studyId){
+  const study=getStudies().find(s=>s.id===studyId);
+  if(!study){showToast('Study not found','err');return;}
+  const logs=getStudyDailyLogs(studyId);
+  const tcs=getStudyToolChanges(studyId);
+  const dlH='Customer,Component,Date,Person,Machine,Shift,Production,Rejection,RejReason,Downtime,Notes';
+  const dlR=logs.map(e=>[study.customer,study.component,e.date,e.person,e.machine,e.shift,
+    e.production,e.rejection,e.rejReason||'',e.downtime,e.notes||''].join(','));
+  const tcH='Customer,Component,Date,Shift,Machine,Tool,Qty,LifeAchieved,LifePct,Reason,CornersUsed,TotalCorners,CornerEff,Resharpening,Source';
+  const tcR=tcs.map(e=>[study.customer,study.component,e.date,e.shift,e.machine,e.tool,
+    e.qty,e.lifeAchieved||'',e.lifePct||'',e.changeReason,e.cornersUsed||'',
+    e.totalCorners||'',e.cornerEfficiency||'',e.resharpening===true?'Yes':e.resharpening===false?'No':'',
+    e.source].join(','));
+  const name=`${study.customer.replace(/\s/g,'_')}_${study.component.replace(/\s/g,'_')}`;
+  [[`${name}_Daily.csv`,[dlH,...dlR].join('\n')],
+   [`${name}_ToolChanges.csv`,[tcH,...tcR].join('\n')]].forEach(([fn,content])=>{
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(content);
+    a.download=fn;a.click();
+  });
+  showToast(`📥 Exported ${study.customer} data`,'ok');
+}
+
+window.onload=function(){
+  document.getElementById('d-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('t-date').value=new Date().toISOString().split('T')[0];
+  loadSettings();
+
+  // Rejection reason oninput
+  document.getElementById('d-rej').oninput=function(){
+    document.getElementById('d-rej-reason-section').style.display=
+      parseFloat(this.value)>0?'block':'none';
+  };
+
+  // Restore active study and render study list
+  renderStudyList();
+  updateActiveStudyDisplay();
+  renderDashboard();
+};
+</script>
+</body>
+</html>
